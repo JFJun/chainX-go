@@ -2,7 +2,6 @@ package tx
 
 import (
 	"encoding/hex"
-	"fmt"
 )
 
 type ChainXSignaturePayload struct {
