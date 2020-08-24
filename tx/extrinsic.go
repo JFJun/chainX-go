@@ -7,6 +7,7 @@ import (
 	codec "github.com/JFJun/chainX-go/codes"
 	"github.com/JFJun/chainX-go/ss58"
 	"github.com/JFJun/chainX-go/util"
+	"strconv"
 )
 
 type ChainXExtrinsic struct {
@@ -148,7 +149,9 @@ func (ce *ChainXExtrinsic) parseAddress() (string, error) {
 	if AccountLength == "ff" {
 		address, err = ss58.EncodeByPubHex(util.BytesToHex(ce.getNextBytes(32)), ss58.ChainXPrefix)
 	} else {
-		address, err = ss58.EncodeByPubHex(util.BytesToHex(append(al, ce.getNextBytes(31)...)), ss58.ChainXPrefix)
+		num, _ := strconv.ParseUint(AccountLength, 16, 32)
+		address = fmt.Sprintf("%d", num)
+		//address, err = ss58.EncodeByPubHex(util.BytesToHex(append(al, ce.getNextBytes(31)...)), ss58.ChainXPrefix)
 	}
 	if err != nil {
 		return "", fmt.Errorf("parse address error,err=%v", err)
