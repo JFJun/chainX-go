@@ -99,11 +99,15 @@ func (rpc *RpcClient) SendRequest(method string, params []interface{}) ([]byte, 
 	if err := json.Unmarshal(resp, &response); err != nil {
 		return nil, errors.New(fmt.Sprintf("Parse resp error,Err=【%v】", err))
 	}
+	if response.Result == nil {
+		return nil, errors.New("result is null")
+	}
 	//如果返回的结果直接是一个string，就不在做json处理了，直接返回
 	switch response.Result.(type) {
 	case string:
 		return []byte(response.Result.(string)), nil
 	default:
+
 		data, err := json.Marshal(response.Result)
 		if err != nil {
 			return nil, errors.New(fmt.Sprintf("Rpc marshal result error,Err=【%v】,Data=[%s]", err, string(resp)))

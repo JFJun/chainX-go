@@ -1,13 +1,16 @@
 package rpc
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/JFJun/chainX-go/model"
+	"github.com/JFJun/chainX-go/ss58"
 	"github.com/JFJun/chainX-go/tx"
 	"github.com/JFJun/chainX-go/util"
+	"github.com/JFJun/chainX-go/xxhash"
 	"golang.org/x/crypto/blake2b"
 	"strconv"
 	"strings"
@@ -87,6 +90,7 @@ func (client *Client) parseBlockByExtrinsic(extrinsics []string, blockResponse *
 		if err != nil {
 			return fmt.Errorf("hex decode extrinsic error,Err=%v", err)
 		}
+
 		ex := tx.NewChainXExtrinsic(data)
 		err = ex.ParseChainXExtrinsic()
 		if err != nil {
@@ -123,6 +127,7 @@ func (client *Client) parseTxEventByBlockHash(blockResponse *model.ChainXBlockRe
 		err      error
 	)
 	respData, err = client.Rpc.SendRequest("chainx_getExtrinsicsEventsByBlockHash", []interface{}{blockHash})
+	fmt.Println(string(respData))
 	if err != nil || len(respData) == 0 {
 		return fmt.Errorf("get blockhash=[%s] event error,err=%v", blockHash, err)
 	}
@@ -179,4 +184,38 @@ func (*Client) createTxHash(extrinsic string) string {
 	data, _ := hex.DecodeString(util.RemoveHex0x(extrinsic))
 	d := blake2b.Sum256(data)
 	return "0x" + hex.EncodeToString(d[:])
+}
+
+func (client *Client) GetAccountNonce(address string) (uint64, error) {
+	pub, err := ss58.DecodeToPub(address)
+	if err != nil {
+		return 0, err
+	}
+	// 因为metadata版本小于8 ，所以不需要添加prefix
+	stringsKey := []byte("System" + " " + "AccountNonce")
+	var key []byte
+	hasher, err := blake2b.New256(nil)
+	if err != nil {
+		return 0, err
+	}
+	_, err = hasher.Write(append(stringsKey, pub...))
+	if err != nil {
+		return 0, err
+	}
+	key = hasher.Sum(nil)
+	k := "0x" + hex.EncodeToString(key)
+	resp, err2 := client.Rpc.SendRequest("state_getStorage", []interface{}{k})
+	if err2 != nil {
+		return 0, err2
+	}
+	nonceHex := string(resp)
+	nonceData, err3 := hex.DecodeString(util.RemoveHex0x(nonceHex))
+	if err3 != nil {
+		return 0, err3
+	}
+	return binary.LittleEndian.Uint64(nonceData), nil
+}
+
+func createPrefixedKey(module, fn string) []byte {
+	return append(xxhash.New128([]byte(module)).Sum(nil), xxhash.New128([]byte(fn)).Sum(nil)...)
 }
